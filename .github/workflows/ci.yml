@@ -20,6 +20,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes gnucobol libpq-dev
       - name: Check shell scripts
         run: bash -n build.sh reset.sh scripts/*.sh
+      - name: Check defect contract
+        run: python3 -m unittest scripts/test_assert_defect.py
       - name: Format Rust
         run: cargo fmt --manifest-path target/Cargo.toml --all -- --check
       - name: Lint Rust
