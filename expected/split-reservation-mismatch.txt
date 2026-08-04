@@ -1,0 +1,6 @@
+FAIL inventory.reserve [available]
+  MISMATCH (auto) views.postgres POSTGRES connection:database
+    request.0.sql:
+      - WITH updated AS (UPDATE inventory SET reserved = reserved + $2 ...)
+      + SELECT sku, available, reserved, available - reserved AS remaining ...
+Summary: 0 passed, 1 failed, 0 errors, 0 skipped

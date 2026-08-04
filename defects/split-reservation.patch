@@ -1,0 +1,55 @@
+diff --git a/target/src/service.rs b/target/src/service.rs
+index 578a061..c16e043 100644
+--- a/target/src/service.rs
++++ b/target/src/service.rs
+@@ -16,7 +16,7 @@ use tokio_postgres::{
+ use crate::domain::{Inventory, ReservationOutcome, ReservationQuantity, Sku};
+ 
+ const FIND_INVENTORY: &str = "SELECT sku, available, reserved, available - reserved AS remaining FROM inventory WHERE sku = $1";
+-const RESERVE_INVENTORY: &str = "WITH updated AS (UPDATE inventory SET reserved = reserved + $2 WHERE sku = $1 AND available - reserved >= $2 RETURNING sku, available, reserved, available - reserved AS remaining) SELECT TRUE AS reserved_now, sku, available, reserved, remaining FROM updated UNION ALL SELECT FALSE AS reserved_now, sku, available, reserved, available - reserved FROM inventory WHERE sku = $1 AND NOT EXISTS (SELECT 1 FROM updated)";
++const UPDATE_INVENTORY: &str = "UPDATE inventory SET reserved = reserved + $2 WHERE sku = $1 RETURNING sku, available, reserved, available - reserved AS remaining";
+ 
+ #[derive(Clone)]
+ pub(crate) struct InventoryService {
+@@ -44,28 +44,25 @@ impl InventoryService {
+         sku: &Sku,
+         quantity: ReservationQuantity,
+     ) -> Result<Option<ReservationOutcome>, ServiceError> {
++        let Some(current) = self.find(sku).await? else {
++            return Ok(None);
++        };
++        if current.available() - current.reserved() < quantity.get() {
++            return Ok(Some(ReservationOutcome::Insufficient(current)));
++        }
++
+         let sku = sku.as_str();
+         let requested = quantity.get();
+         let parameters: &[(&(dyn ToSql + Sync), Type)] =
+             &[(&sku, Type::TEXT), (&requested, Type::INT4)];
+-        let outcome = self
++        let row = self
+             .client
+-            .query_typed_opt(RESERVE_INVENTORY, parameters)
+-            .await?
+-            .map(|row| {
+-                let inventory = inventory_from_row(&row)?;
+-                Ok::<_, ServiceError>(if row.try_get::<_, bool>("reserved_now")? {
+-                    ReservationOutcome::Reserved(inventory)
+-                } else {
+-                    ReservationOutcome::Insufficient(inventory)
+-                })
+-            })
+-            .transpose()?;
++            .query_typed_one(UPDATE_INVENTORY, parameters)
++            .await?;
++        let inventory = inventory_from_row(&row)?;
+ 
+-        if let Some(ReservationOutcome::Reserved(inventory)) = &outcome {
+-            self.append_event(&inventory.event_line(quantity))?;
+-        }
+-        Ok(outcome)
++        self.append_event(&inventory.event_line(quantity))?;
++        Ok(Some(ReservationOutcome::Reserved(inventory)))
+     }
+ 
+     fn append_event(&self, event: &str) -> Result<(), ServiceError> {

@@ -1,0 +1,50 @@
+parity 1
+
+audit required {
+  settle quiet 50ms
+}
+
+specs "specs/*.md"
+
+action get_inventory = GET "/inventory/{sku}"
+action reserve = POST "/inventory/{sku}/reservations/{quantity}"
+
+view inventory = sql """
+select sku, available, reserved, available - reserved as remaining
+from inventory where sku = :sku
+"""
+view events = files "${project}/.parity/runtime/${subject}"
+
+legacy {
+  artifacts ["legacy/**/*", "reset.sh", "schema.sql"]
+  connect database = env("LEGACY_DATABASE_URL")
+  reset [
+    "bash",
+    "${project}/reset.sh",
+    "LEGACY_DATABASE_URL",
+    "${project}/.parity/runtime/legacy",
+  ]
+  serve ["${project}/bin/legacy"] at "http://127.0.0.1:__LEGACY_PORT__" {
+    env PORT = "__LEGACY_PORT__"
+    env DATABASE_URL = env("LEGACY_DATABASE_URL")
+    env EVENT_LOG = "${project}/.parity/runtime/legacy/reservations.tsv"
+    ready "/health" within 5s
+  }
+}
+
+target {
+  artifacts ["target/**/*", "reset.sh", "schema.sql"]
+  connect database = env("TARGET_DATABASE_URL")
+  reset [
+    "bash",
+    "${project}/reset.sh",
+    "TARGET_DATABASE_URL",
+    "${project}/.parity/runtime/target",
+  ]
+  serve ["${project}/bin/target"] at "http://127.0.0.1:__TARGET_PORT__" {
+    env PORT = "__TARGET_PORT__"
+    env DATABASE_URL = env("TARGET_DATABASE_URL")
+    env EVENT_LOG = "${project}/.parity/runtime/target/reservations.tsv"
+    ready "/health" within 5s
+  }
+}

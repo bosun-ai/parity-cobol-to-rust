@@ -1,0 +1,4 @@
+FAIL inventory.reserve [available]
+  MISMATCH views.events/modified/0
+  MISMATCH (auto) views.filesystem_state FILE_EDIT reservations.tsv
+Summary: 0 passed, 1 failed, 0 errors, 0 skipped

@@ -1,0 +1,5 @@
+PASS inventory.invalid-reservation (8 cases) | MATCH reserve.result, views.events, views.inventory
+  PASS generated case 1
+  PASS generated case 2
+  PASS generated case 3
+  PASS generated case 4

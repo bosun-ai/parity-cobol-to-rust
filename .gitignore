@@ -1,0 +1,4 @@
+/bin/
+/.parity/
+/target/target/
+*.log

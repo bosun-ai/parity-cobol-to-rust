@@ -1,0 +1,1 @@
+PASS inventory.reserve [available] | MATCH reserve.result, views.events, views.filesystem, +4 more

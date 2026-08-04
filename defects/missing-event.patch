@@ -1,0 +1,14 @@
+diff --git a/target/src/service.rs b/target/src/service.rs
+index 578a061..a7c991d 100644
+--- a/target/src/service.rs
++++ b/target/src/service.rs
+@@ -62,9 +62,6 @@ impl InventoryService {
+             })
+             .transpose()?;
+ 
+-        if let Some(ReservationOutcome::Reserved(inventory)) = &outcome {
+-            self.append_event(&inventory.event_line(quantity))?;
+-        }
+         Ok(outcome)
+     }
+ 
