@@ -1,7 +1,6 @@
-//! HTTP routes and public JSON response shapes.
+//! HTTP routes and JSON responses.
 //!
-//! Handlers validate path values, call the inventory service, and map each
-//! domain outcome to the response shape shared with the COBOL service.
+//! Each route reads the path, calls the inventory service, and sends a response.
 
 use axum::{
     Json, Router,
@@ -18,7 +17,7 @@ use crate::{
     service::{InventoryService, ServiceError},
 };
 
-/// Builds the inventory API with shared service state.
+/// Creates the inventory routes.
 pub(crate) fn router(inventory: InventoryService) -> Router {
     Router::new()
         .route("/health", get(health))
@@ -32,12 +31,12 @@ pub(crate) fn router(inventory: InventoryService) -> Router {
         .with_state(inventory)
 }
 
-/// Reports process health without touching storage.
+/// Reports that the service is running.
 async fn health() -> Response {
     (StatusCode::OK, Json(HealthResponse { status: "ok" })).into_response()
 }
 
-/// Returns one inventory item or the shared not-found response.
+/// Returns one inventory item or a not-found error.
 async fn get_inventory(
     State(inventory): State<InventoryService>,
     OriginalUri(uri): OriginalUri,
@@ -53,7 +52,7 @@ async fn get_inventory(
     )
 }
 
-/// Validates and attempts a reservation, then maps its domain outcome to HTTP.
+/// Tries to reserve stock and returns the result.
 async fn reserve_inventory(
     State(inventory): State<InventoryService>,
     OriginalUri(uri): OriginalUri,
@@ -77,28 +76,28 @@ async fn reserve_inventory(
     }
 }
 
-/// Rejects percent-encoded paths so the Rust and COBOL parsers accept the same inputs.
+/// Rejects encoded paths that the COBOL service does not accept.
 fn reject_encoded_path(uri: &axum::http::Uri) -> Result<(), ApiError> {
     (!uri.path().contains('%'))
         .then_some(())
         .ok_or(ApiError::InvalidRequest)
 }
 
-/// Handles unknown paths and unsupported methods with the shared response.
+/// Returns not found for an unknown path or method.
 async fn not_found() -> Response {
     error_response(StatusCode::NOT_FOUND, "not_found")
 }
 
-/// A request failed before the service could produce a response value.
+/// An error the client receives.
 #[derive(Debug, Error)]
 enum ApiError {
-    /// The path contains a value outside the public request rules.
+    /// The request path is invalid.
     #[error("invalid request")]
     InvalidRequest,
-    /// No inventory row exists for the requested SKU.
+    /// No inventory exists for the SKU.
     #[error("inventory not found")]
     NotFound,
-    /// Storage or event recording failed.
+    /// The database or event file failed.
     #[error(transparent)]
     Internal(#[from] ServiceError),
 }
@@ -116,18 +115,18 @@ impl axum::response::IntoResponse for ApiError {
     }
 }
 
-/// Builds the common JSON error shape.
+/// Builds a JSON error response.
 fn error_response(status: StatusCode, error: &'static str) -> Response {
     (status, Json(ErrorResponse { error })).into_response()
 }
 
-/// JSON body returned by the health route.
+/// The health route returns this response.
 #[derive(Serialize)]
 struct HealthResponse {
     status: &'static str,
 }
 
-/// JSON body returned when the requested stock is unavailable.
+/// The service returns this response when stock is short.
 #[derive(Serialize)]
 struct InsufficientStockResponse<'a> {
     error: &'static str,
@@ -138,7 +137,7 @@ struct InsufficientStockResponse<'a> {
 }
 
 impl<'a> InsufficientStockResponse<'a> {
-    /// Builds the conflict response from the unchanged inventory snapshot.
+    /// Creates the response from the current inventory.
     const fn new(item: &'a Inventory, quantity: ReservationQuantity) -> Self {
         Self {
             error: "insufficient_stock",
@@ -150,7 +149,7 @@ impl<'a> InsufficientStockResponse<'a> {
     }
 }
 
-/// JSON body shared by public error responses.
+/// The client receives this error.
 #[derive(Serialize)]
 struct ErrorResponse {
     error: &'static str,

@@ -1,7 +1,6 @@
-//! Process entry point for the Rust inventory service.
+//! Starts the Rust inventory service.
 //!
-//! Startup reads process configuration, opens the database, and serves the HTTP
-//! adapter on a single-threaded runtime.
+//! It reads the settings, connects to the database, and starts the HTTP server.
 
 mod domain;
 mod http;
@@ -14,7 +13,7 @@ use thiserror::Error;
 use tokio::net::TcpListener;
 use tokio_postgres::NoTls;
 
-/// Starts the database connection task and inventory HTTP server.
+/// Runs the inventory service.
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), MainError> {
     tracing_subscriber::fmt()
@@ -40,24 +39,24 @@ async fn main() -> Result<(), MainError> {
     Ok(())
 }
 
-/// Reads one required process setting without exposing environment errors.
+/// Reads one required setting.
 fn required(name: &'static str) -> Result<String, MainError> {
     env::var(name).map_err(|_| MainError::Missing(name))
 }
 
-/// Startup or server execution failed.
+/// The service could not start or keep running.
 #[derive(Debug, Error)]
 enum MainError {
-    /// A required process setting is absent.
+    /// A required setting is missing.
     #[error("required environment variable {0} is not set")]
     Missing(&'static str),
-    /// The configured port is not an unsigned 16-bit integer.
+    /// The port is invalid.
     #[error("PORT must be a valid TCP port")]
     InvalidPort(#[source] ParseIntError),
-    /// The service could not open its database connection.
+    /// The database connection failed.
     #[error("could not connect to PostgreSQL")]
     Database(#[from] tokio_postgres::Error),
-    /// The listener or HTTP server returned an I/O error.
+    /// The HTTP server failed.
     #[error("inventory HTTP server failed")]
     Http(#[from] io::Error),
 }

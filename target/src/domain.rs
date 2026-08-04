@@ -1,12 +1,11 @@
-//! Inventory values, request validation, and reservation outcomes.
+//! Rules for SKUs, quantities, and inventory responses.
 //!
-//! HTTP parsing creates these types before the service reaches the database. This
-//! keeps invalid request values out of the storage layer.
+//! The HTTP code checks request values here before it queries the database.
 
 use serde::Serialize;
 use thiserror::Error;
 
-/// A validated inventory identifier used by every service operation.
+/// A SKU accepted by the service.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(transparent)]
 pub(crate) struct Sku(String);
@@ -24,13 +23,13 @@ impl Sku {
             .ok_or(ValidationError::InvalidSku)
     }
 
-    /// Returns the value used in query parameters and event records.
+    /// Returns the SKU text.
     pub(crate) fn as_str(&self) -> &str {
         &self.0
     }
 }
 
-/// A validated request to reserve between 1 and 9999 units.
+/// A request to reserve between 1 and 9999 units.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ReservationQuantity(i32);
 
@@ -50,13 +49,13 @@ impl ReservationQuantity {
             .ok_or(ValidationError::InvalidQuantity)
     }
 
-    /// Returns the quantity used by the database and response layers.
+    /// Returns the number of units to reserve.
     pub(crate) const fn get(self) -> i32 {
         self.0
     }
 }
 
-/// The public inventory snapshot returned by reads and reservations.
+/// Inventory the service sends to the client.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub(crate) struct Inventory {
     sku: Sku,
@@ -66,7 +65,7 @@ pub(crate) struct Inventory {
 }
 
 impl Inventory {
-    /// Builds a snapshot from one database result row.
+    /// Creates inventory from one database result.
     pub(crate) const fn new(sku: Sku, available: i32, reserved: i32, remaining: i32) -> Self {
         Self {
             sku,
@@ -76,12 +75,12 @@ impl Inventory {
         }
     }
 
-    /// Returns the inventory identifier.
+    /// Returns the SKU.
     pub(crate) const fn sku(&self) -> &Sku {
         &self.sku
     }
 
-    /// Returns the total number of units in stock.
+    /// Returns the number of units in stock.
     pub(crate) const fn available(&self) -> i32 {
         self.available
     }
@@ -91,7 +90,7 @@ impl Inventory {
         self.reserved
     }
 
-    /// Formats the append-only reservation record shared with the COBOL service.
+    /// Builds the event line written after a reservation.
     pub(crate) fn event_line(&self, quantity: ReservationQuantity) -> String {
         format!(
             "reserved|{}|{}|{}|{}\n",
@@ -103,22 +102,22 @@ impl Inventory {
     }
 }
 
-/// The two outcomes returned when an inventory row exists.
+/// The result of a reservation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ReservationOutcome {
-    /// The database reserved the requested stock.
+    /// The service reserved the stock.
     Reserved(Inventory),
-    /// The row exists but lacks enough unreserved stock.
+    /// There was not enough stock.
     Insufficient(Inventory),
 }
 
-/// A request value failed domain validation.
+/// An invalid request value.
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
 pub(crate) enum ValidationError {
-    /// The SKU uses an unsupported length or character.
+    /// The SKU has the wrong length or contains an invalid character.
     #[error("invalid SKU")]
     InvalidSku,
-    /// The quantity falls outside the accepted decimal form or range.
+    /// The quantity is not a number from 1 through 9999.
     #[error("invalid reservation quantity")]
     InvalidQuantity,
 }
