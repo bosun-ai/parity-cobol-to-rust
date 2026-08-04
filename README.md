@@ -82,8 +82,9 @@ output from the example is in [`expected/`](expected/).
 [`audit.contract.json`](audit.contract.json) is read by Parity's end-to-end tests when this
 repository is checked out as an example. It lists the exact proofs and observed views the tests must
 run, requires both live audit verification and offline replay, and names the differences each defect
-must expose. Keeping it beside the example makes proof changes visible to both repositories. The
-`Parityfile` remains the configuration used by Parity.
+must expose. The defect checker reads the structured offline result because `proof.json` stores the
+evidence that offline verification evaluates. Keeping the contract beside the example makes proof
+changes visible to both repositories. The `Parityfile` remains the configuration used by Parity.
 
 ## Layout
 

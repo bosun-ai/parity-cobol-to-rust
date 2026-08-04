@@ -13,6 +13,7 @@ case "${defect}" in
 esac
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/parity-cobol-rust.XXXXXX")"
+offline_result="${work}/offline-result.json"
 cleanup() {
   rm -rf -- "${work}"
 }
@@ -32,5 +33,13 @@ if [[ ${status} -eq 0 ]]; then
   echo "expected Parity to reject ${defect}" >&2
   exit 1
 fi
+set +e
+(cd "${work}" && parity verify --offline .parity/proof.json --json) >"${offline_result}"
+offline_status=$?
+set -e
+if [[ ${offline_status} -eq 0 ]]; then
+  echo "expected offline verification to reject ${defect}" >&2
+  exit 1
+fi
 python3 "${project}/scripts/assert_defect.py" \
-  "${defect}" "${work}/.parity/proof.json" "${project}/audit.contract.json"
+  "${defect}" "${offline_result}" "${project}/audit.contract.json"

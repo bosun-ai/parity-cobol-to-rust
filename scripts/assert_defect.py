@@ -18,17 +18,21 @@ def difference_root(difference: dict) -> str:
     return surface.split("/", 1)[0]
 
 
-def assert_defect(contract: dict, proof: dict, defect: str) -> None:
+def assert_defect(contract: dict, result: dict, defect: str) -> None:
     expected = set(contract["defects"][defect])
-    cases = proof.get("cases", [])
+    if result.get("verdict") != "failed" or result.get("failed") != 1:
+        raise ValueError(
+            f"expected one failed proof, observed {result.get('verdict')} "
+            f"with {result.get('failed')} failures"
+        )
+    if result.get("errors") != 0:
+        raise ValueError(f"proof ended with {result.get('errors')} execution errors")
+    cases = result.get("cases", [])
     if len(cases) != 1:
         raise ValueError(f"expected one defect case, observed {len(cases)}")
     case = cases[0]
     if case.get("verdict") != "failed":
         raise ValueError(f"expected a failed proof, observed {case.get('verdict')}")
-    for subject in ("legacy", "target"):
-        if case[subject].get("error") is not None:
-            raise ValueError(f"{subject} ended with an execution error")
     observed = {difference_root(value) for value in case.get("differences", [])}
     if observed != expected:
         raise ValueError(
@@ -38,9 +42,9 @@ def assert_defect(contract: dict, proof: dict, defect: str) -> None:
 
 def main() -> None:
     defect = sys.argv[1]
-    proof = json.loads(pathlib.Path(sys.argv[2]).read_text())
+    result = json.loads(pathlib.Path(sys.argv[2]).read_text())
     contract = json.loads(pathlib.Path(sys.argv[3]).read_text())
-    assert_defect(contract, proof, defect)
+    assert_defect(contract, result, defect)
     print(f"Expected mismatch: {defect} ({', '.join(contract['defects'][defect])})")
 
 
