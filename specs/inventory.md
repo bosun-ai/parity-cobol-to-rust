@@ -38,6 +38,11 @@ proof inventory.reserve {
       diff.target.endsWith("/target/reservations.tsv"))
     assert (diff.path.size() > 1 &&
       diff.path[0] == "views" && diff.path[1] == "postgres" &&
+      legacy.views.postgres.added.size() == 1 && target.views.postgres.added.size() == 1 &&
+      legacy.views.postgres.added[0].request.size() == 5 &&
+      target.views.postgres.added[0].request.size() == 5 &&
+      legacy.views.postgres.added[0].request[0].sql ==
+        target.views.postgres.added[0].request[0].sql &&
       legacy.views.postgres.added[0].request[2].target == "portal" &&
       target.views.postgres.added[0].request[2].target == "statement")
   }
@@ -89,6 +94,11 @@ proof inventory.missing {
     assert views.events == {"added": [], "removed": [], "modified": []}
     assert (diff.path.size() > 1 &&
       diff.path[0] == "views" && diff.path[1] == "postgres" &&
+      legacy.views.postgres.added.size() == 1 && target.views.postgres.added.size() == 1 &&
+      legacy.views.postgres.added[0].request.size() == 5 &&
+      target.views.postgres.added[0].request.size() == 5 &&
+      legacy.views.postgres.added[0].request[0].sql ==
+        target.views.postgres.added[0].request[0].sql &&
       legacy.views.postgres.added[0].request[2].target == "portal" &&
       target.views.postgres.added[0].request[2].target == "statement")
   }
@@ -118,6 +128,11 @@ proof inventory.reject {
     assert views.events == {"added": [], "removed": [], "modified": []}
     assert (diff.path.size() > 1 &&
       diff.path[0] == "views" && diff.path[1] == "postgres" &&
+      legacy.views.postgres.added.size() == 1 && target.views.postgres.added.size() == 1 &&
+      legacy.views.postgres.added[0].request.size() == 5 &&
+      target.views.postgres.added[0].request.size() == 5 &&
+      legacy.views.postgres.added[0].request[0].sql ==
+        target.views.postgres.added[0].request[0].sql &&
       legacy.views.postgres.added[0].request[2].target == "portal" &&
       target.views.postgres.added[0].request[2].target == "statement")
   }
@@ -146,6 +161,11 @@ proof inventory.show {
     assert views.events == {"added": [], "removed": [], "modified": []}
     assert (diff.path.size() > 1 &&
       diff.path[0] == "views" && diff.path[1] == "postgres" &&
+      legacy.views.postgres.added.size() == 1 && target.views.postgres.added.size() == 1 &&
+      legacy.views.postgres.added[0].request.size() == 5 &&
+      target.views.postgres.added[0].request.size() == 5 &&
+      legacy.views.postgres.added[0].request[0].sql ==
+        target.views.postgres.added[0].request[0].sql &&
       legacy.views.postgres.added[0].request[2].target == "portal" &&
       target.views.postgres.added[0].request[2].target == "statement")
   }
