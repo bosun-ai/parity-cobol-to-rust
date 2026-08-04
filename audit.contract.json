@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "mode": "required",
+  "proofs": [
+    "inventory.invalid-reservation",
+    "inventory.missing",
+    "inventory.reject",
+    "inventory.reserve",
+    "inventory.show"
+  ],
+  "live": true,
+  "offline": true
+}

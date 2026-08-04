@@ -64,6 +64,13 @@ $ ./scripts/verify-defect.sh missing-event
 Each command succeeds only when Parity rejects the changed target for the expected reason. Reviewed
 output from the example is in [`expected/`](expected/).
 
+## Parity test contract
+
+[`audit.contract.json`](audit.contract.json) is read by Parity's end-to-end tests when this
+repository is checked out as an example. It lists the exact proofs the tests must run and requires
+both live audit verification and offline replay. Keeping it beside the example makes proof changes
+visible to both repositories. The `Parityfile` remains the configuration used by Parity.
+
 ## Layout
 
 - `legacy/` contains the GNU COBOL service.
