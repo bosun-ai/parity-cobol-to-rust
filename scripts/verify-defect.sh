@@ -5,12 +5,7 @@ project="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 defect="${1:?usage: scripts/verify-defect.sh <split-reservation|missing-event>}"
 
 case "${defect}" in
-  split-reservation)
-    expected="views.postgres"
-    ;;
-  missing-event)
-    expected="views.events"
-    ;;
+  split-reservation | missing-event) ;;
   *)
     echo "unknown defect: ${defect}" >&2
     exit 2
@@ -37,7 +32,5 @@ if [[ ${status} -eq 0 ]]; then
   echo "expected Parity to reject ${defect}" >&2
   exit 1
 fi
-if [[ "${output}" != *"${expected}"* ]]; then
-  echo "Parity rejected the target, but not at ${expected}" >&2
-  exit 1
-fi
+python3 "${project}/scripts/assert_defect.py" \
+  "${defect}" "${work}/.parity/proof.json" "${project}/audit.contract.json"

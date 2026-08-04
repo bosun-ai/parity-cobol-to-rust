@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "mode": "required",
   "proofs": [
     "inventory.invalid-reservation",
@@ -9,5 +9,23 @@
     "inventory.show"
   ],
   "live": true,
-  "offline": true
+  "offline": true,
+  "views": {
+    "inventory.invalid-reservation": ["events", "inventory"],
+    "inventory.missing": ["events", "inventory", "postgres"],
+    "inventory.reject": ["events", "inventory", "postgres"],
+    "inventory.reserve": [
+      "events",
+      "filesystem",
+      "filesystem_state",
+      "inventory",
+      "postgres",
+      "postgres_state_state"
+    ],
+    "inventory.show": ["events", "inventory", "postgres"]
+  },
+  "defects": {
+    "missing-event": ["views.events", "views.filesystem_state"],
+    "split-reservation": ["views.postgres"]
+  }
 }
