@@ -46,6 +46,19 @@ $ parity verify
 The proof compares HTTP responses, inventory rows, event contents, and observed side effects. It
 requires equality except for each difference that the proof requires by path and value.
 
+The successful run includes the reservation case, eight invalid-input cases, and the final count:
+
+```console
+$ parity verify
+PASS inventory.reserve [available] | MATCH reserve.result, views.events, views.filesystem, +4 more
+PASS inventory.invalid-reservation (8 cases) | MATCH reserve.result, views.events, views.inventory
+  PASS generated case 1
+  PASS generated case 2
+  PASS generated case 3
+  PASS generated case 4
+Summary: 12 passed, 0 failed, 0 errors, 0 skipped
+```
+
 ## Try the defects
 
 Two patches recreate the mistakes used in the article:
