@@ -12,8 +12,8 @@ def difference_root(difference: dict) -> str:
         return f"views.{path[1]}"
     if "effects" in path:
         effects = path.index("effects")
-        if len(path) > effects + 2 and path[effects + 1] == "views":
-            return f"views.{path[effects + 2]}"
+        if len(path) > effects + 1:
+            return f"views.{path[effects + 1]}"
     surface = difference.get("surface", "")
     return surface.split("/", 1)[0]
 

@@ -32,6 +32,16 @@ class DefectContractTest(unittest.TestCase):
     def test_exact_difference_matches(self):
         assert_defect(self.contract, result("postgres"), "changed")
 
+    def test_execution_view_path_matches(self):
+        changed = result()
+        changed["cases"][0]["differences"] = [
+            {
+                "surface": "observations",
+                "path": "/steps/exercise/effects/postgres/delta/added/0",
+            }
+        ]
+        assert_defect(self.contract, changed, "changed")
+
     def test_unrelated_difference_fails(self):
         with self.assertRaisesRegex(ValueError, "defect differences differ"):
             assert_defect(self.contract, result("result"), "changed")
