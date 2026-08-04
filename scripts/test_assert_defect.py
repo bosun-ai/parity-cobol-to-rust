@@ -42,6 +42,13 @@ class DefectContractTest(unittest.TestCase):
         ]
         assert_defect(self.contract, changed, "changed")
 
+    def test_failed_assertions_are_not_behavior_roots(self):
+        changed = result("postgres")
+        changed["cases"][0]["differences"].append(
+            {"surface": "assertions", "path": "/2"}
+        )
+        assert_defect(self.contract, changed, "changed")
+
     def test_unrelated_difference_fails(self):
         with self.assertRaisesRegex(ValueError, "defect differences differ"):
             assert_defect(self.contract, result("result"), "changed")

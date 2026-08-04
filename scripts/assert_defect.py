@@ -6,7 +6,9 @@ import pathlib
 import sys
 
 
-def difference_root(difference: dict) -> str:
+def difference_root(difference: dict) -> str | None:
+    if difference.get("surface") in {"assertions", "diff_assertions"}:
+        return None
     path = difference.get("path", "").strip("/").split("/")
     if len(path) >= 2 and path[0] == "views":
         return f"views.{path[1]}"
@@ -33,7 +35,11 @@ def assert_defect(contract: dict, result: dict, defect: str) -> None:
     case = cases[0]
     if case.get("verdict") != "failed":
         raise ValueError(f"expected a failed proof, observed {case.get('verdict')}")
-    observed = {difference_root(value) for value in case.get("differences", [])}
+    observed = {
+        root
+        for value in case.get("differences", [])
+        if (root := difference_root(value)) is not None
+    }
     if observed != expected:
         raise ValueError(
             f"defect differences differ: expected {sorted(expected)}, observed {sorted(observed)}"

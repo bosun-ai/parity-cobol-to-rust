@@ -25,7 +25,7 @@
     "inventory.show": ["events", "inventory", "postgres"]
   },
   "defects": {
-    "missing-event": ["views.events", "views.filesystem_state"],
+    "missing-event": ["views.events", "views.filesystem"],
     "split-reservation": ["views.postgres"]
   }
 }
