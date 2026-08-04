@@ -2,13 +2,14 @@
 IDENTIFICATION DIVISION.
 PROGRAM-ID. inventory-service.
 
-*> Legacy inventory HTTP service used as the migration reference.
-*> The process owns its POSIX socket, calls libpq directly, and appends one
-*> line-sequential event after each successful database reservation.
+*> This is the old inventory service used as the migration reference.
+*> It serves HTTP, stores inventory in PostgreSQL, and writes one event line
+*> after each successful reservation.
 
 ENVIRONMENT DIVISION.
 INPUT-OUTPUT SECTION.
 FILE-CONTROL.
+*> The service writes successful reservations to this event file.
     SELECT OPTIONAL EVENT-FILE ASSIGN TO DYNAMIC WS-EVENT-PATH
         ORGANIZATION IS LINE SEQUENTIAL
         FILE STATUS IS WS-EVENT-FILE-STATUS.
@@ -19,6 +20,7 @@ FD EVENT-FILE.
 01 EVENT-RECORD PIC X(256).
 
 WORKING-STORAGE SECTION.
+*> Numbers used by the network, database, and HTTP code.
 78 AF-INET VALUE 2.
 78 SOCK-STREAM VALUE 1.
 78 SOL-SOCKET VALUE 1.
@@ -35,6 +37,7 @@ WORKING-STORAGE SECTION.
 78 HTTP-CONFLICT VALUE 409.
 78 HTTP-INTERNAL-ERROR VALUE 500.
 
+*> Settings for the port, database, and event file.
 01 WS-ENVIRONMENT.
    05 WS-PORT-NAME PIC X(5) VALUE "PORT" & X"00".
    05 WS-DATABASE-NAME PIC X(13) VALUE "DATABASE_URL" & X"00".
@@ -48,6 +51,7 @@ WORKING-STORAGE SECTION.
 
 01 WS-C-STRING PIC X(512) BASED.
 
+*> Connections to the server and its current client.
 01 WS-SERVER.
    05 WS-SERVER-SOCKET USAGE BINARY-LONG VALUE -1.
    05 WS-CLIENT-SOCKET USAGE BINARY-LONG VALUE -1.
@@ -62,6 +66,7 @@ WORKING-STORAGE SECTION.
       10 WS-ADDRESS-HOST USAGE BINARY-LONG UNSIGNED VALUE 0.
       10 WS-ADDRESS-PADDING PIC X(8) VALUE LOW-VALUES.
 
+*> The current request and the parts of its URL.
 01 WS-REQUEST.
    05 WS-REQUEST-BUFFER PIC X(2048).
    05 WS-REQUEST-SIZE USAGE BINARY-C-LONG.
@@ -87,6 +92,7 @@ WORKING-STORAGE SECTION.
    05 WS-QUANTITY-NUMBER USAGE BINARY-LONG.
    05 WS-QUANTITY-DISPLAY PIC Z(3)9.
 
+*> The database connection, current query, and result.
 01 WS-DATABASE.
    05 WS-DB-CONNECTION USAGE POINTER.
    05 WS-CONNECTION-STATUS USAGE BINARY-LONG.
@@ -109,11 +115,13 @@ WORKING-STORAGE SECTION.
    05 WS-QUANTITY-PARAMETER PIC X(5).
    05 WS-PARAMETER-POINTER USAGE POINTER OCCURS 2 TIMES.
 
+*> Whether the service wrote the reservation event.
 01 WS-EVENT.
    05 WS-EVENT-FILE-STATUS PIC XX.
    05 WS-EVENT-STATE PIC X VALUE "N".
       88 EVENT-WRITE-SUCCEEDED VALUE "Y".
 
+*> The response status, headers, and JSON body.
 01 WS-RESPONSE.
    05 WS-RESPONSE-BODY PIC X(1024).
    05 WS-RESPONSE-LENGTH USAGE BINARY-C-LONG UNSIGNED.
@@ -127,6 +135,7 @@ WORKING-STORAGE SECTION.
    05 WS-RESPONSE-STATUS-LINE PIC X(32).
 
 PROCEDURE DIVISION.
+*> Connect to the database, then start the HTTP server.
     PERFORM INITIALIZE-SERVICE
     PERFORM SERVE-REQUESTS
     STOP RUN
@@ -137,6 +146,7 @@ INITIALIZE-SERVICE.
     PERFORM CONNECT-DATABASE
     PERFORM OPEN-SERVER.
 
+*> Read PORT, DATABASE_URL, and EVENT_LOG.
 READ-ENVIRONMENT.
     CALL "getenv" USING BY REFERENCE WS-PORT-NAME
         RETURNING WS-PORT-POINTER
@@ -168,6 +178,7 @@ READ-ENVIRONMENT.
     MOVE SPACES TO WS-EVENT-PATH
     UNSTRING WS-C-STRING DELIMITED BY LOW-VALUE INTO WS-EVENT-PATH.
 
+*> Open the database connection used by each request.
 CONNECT-DATABASE.
     CALL "PQconnectdb"
         USING BY VALUE WS-DATABASE-POINTER
@@ -187,6 +198,7 @@ CONNECT-DATABASE.
         STOP RUN RETURNING 1
     END-IF.
 
+*> Start listening for HTTP requests.
 OPEN-SERVER.
     CALL "socket"
         USING BY VALUE AF-INET BY VALUE SOCK-STREAM BY VALUE 0
@@ -232,11 +244,13 @@ OPEN-SERVER.
         STOP RUN RETURNING 1
     END-IF.
 
+*> Handle one request at a time.
 SERVE-REQUESTS.
     PERFORM FOREVER
         PERFORM ACCEPT-REQUEST
     END-PERFORM.
 
+*> Stop waiting if a client does not send its request.
 ACCEPT-REQUEST.
     CALL "accept4"
         USING BY VALUE WS-SERVER-SOCKET
@@ -264,6 +278,7 @@ ACCEPT-REQUEST.
     PERFORM HANDLE-REQUEST
     PERFORM CLOSE-CLIENT.
 
+*> Finish the response and close the client connection.
 CLOSE-CLIENT.
     CALL "shutdown"
         USING BY VALUE WS-CLIENT-SOCKET BY VALUE SHUT-WR
@@ -282,6 +297,7 @@ CLOSE-CLIENT.
     CALL "close" USING BY VALUE WS-CLIENT-SOCKET END-CALL
     MOVE -1 TO WS-CLIENT-SOCKET.
 
+*> Read the method and path, then choose the matching action.
 HANDLE-REQUEST.
     INITIALIZE WS-REQUEST-BUFFER WS-REQUEST-METHOD WS-REQUEST-URL
         WS-REQUEST-PATH WS-REQUEST-REST WS-PATH-EMPTY WS-PATH-RESOURCE
@@ -349,6 +365,7 @@ HANDLE-REQUEST.
     END-EVALUATE
     PERFORM SEND-RESPONSE.
 
+*> Accept 1 to 32 lowercase letters, digits, or hyphens.
 VALIDATE-SKU.
     MOVE "N" TO WS-VALID-SKU
     IF FUNCTION STORED-CHAR-LENGTH(WS-PATH-SKU) < 1
@@ -370,6 +387,7 @@ VALIDATE-SKU.
         END-IF
     END-PERFORM.
 
+*> Accept a quantity from 1 through 9999.
 VALIDATE-QUANTITY.
     MOVE "N" TO WS-VALID-QUANTITY
     IF FUNCTION STORED-CHAR-LENGTH(WS-PATH-QUANTITY) < 1
@@ -392,6 +410,7 @@ VALIDATE-QUANTITY.
         END-IF
     END-IF.
 
+*> Read one inventory item without changing it.
 GET-INVENTORY.
     MOVE LOW-VALUES TO WS-SQL-COMMAND
     STRING
@@ -415,6 +434,7 @@ GET-INVENTORY.
     END-IF
     PERFORM CLEAR-QUERY.
 
+*> Update the stock and return the result in one database call.
 RESERVE-INVENTORY.
     MOVE WS-QUANTITY-NUMBER TO WS-QUANTITY-DISPLAY
     MOVE LOW-VALUES TO WS-SQL-COMMAND
@@ -470,6 +490,7 @@ RESERVE-INVENTORY.
     END-IF
     PERFORM CLEAR-QUERY.
 
+*> Prepare the SKU for the database query.
 SET-SKU-PARAMETER.
     MOVE LOW-VALUES TO WS-SKU-PARAMETER
     STRING FUNCTION TRIM(WS-PATH-SKU) X"00"
@@ -477,6 +498,7 @@ SET-SKU-PARAMETER.
     END-STRING
     SET WS-PARAMETER-POINTER(1) TO ADDRESS OF WS-SKU-PARAMETER.
 
+*> Run the query and keep its result.
 EXECUTE-QUERY.
     MOVE "Y" TO WS-QUERY-STATE
     SET WS-QUERY-RESULT TO NULL
@@ -509,6 +531,7 @@ EXECUTE-QUERY.
         RETURNING WS-ROW-COUNT
     END-CALL.
 
+*> Copy the inventory values into the response.
 READ-INVENTORY-ROW.
     MOVE 0 TO WS-CHARACTER-INDEX
     PERFORM READ-FIELD
@@ -523,6 +546,7 @@ READ-INVENTORY-ROW.
     PERFORM READ-FIELD
     MOVE WS-FIELD-TEXT TO WS-REMAINING-TEXT.
 
+*> Copy the reservation result and inventory values.
 READ-RESERVATION-ROW.
     MOVE 0 TO WS-CHARACTER-INDEX
     PERFORM READ-FIELD
@@ -540,6 +564,7 @@ READ-RESERVATION-ROW.
     PERFORM READ-FIELD
     MOVE WS-FIELD-TEXT TO WS-REMAINING-TEXT.
 
+*> Read one value from the database result.
 READ-FIELD.
     CALL "PQgetvalue"
         USING BY VALUE WS-QUERY-RESULT
@@ -551,18 +576,21 @@ READ-FIELD.
     MOVE SPACES TO WS-FIELD-TEXT
     UNSTRING WS-C-STRING DELIMITED BY LOW-VALUE INTO WS-FIELD-TEXT.
 
+*> Clear the database result after the request.
 CLEAR-QUERY.
     IF WS-QUERY-RESULT NOT = NULL
         CALL "PQclear" USING BY VALUE WS-QUERY-RESULT END-CALL
         SET WS-QUERY-RESULT TO NULL
     END-IF.
 
+*> Return a safe error and log the database details.
 DATABASE-ERROR.
     MOVE "N" TO WS-QUERY-STATE
     PERFORM INTERNAL-ERROR
     PERFORM DISPLAY-DATABASE-ERROR
     MOVE 0 TO WS-ROW-COUNT.
 
+*> Write database details to the service log, not the response.
 DISPLAY-DATABASE-ERROR.
     IF WS-DB-CONNECTION NOT = NULL
         CALL "PQerrorMessage"
@@ -578,6 +606,7 @@ DISPLAY-DATABASE-ERROR.
         END-IF
     END-IF.
 
+*> Write an event after the database reserves the stock.
 WRITE-EVENT.
     MOVE "N" TO WS-EVENT-STATE
     INITIALIZE EVENT-RECORD
@@ -602,6 +631,7 @@ WRITE-EVENT.
     END-IF
     CLOSE EVENT-FILE.
 
+*> Build the inventory JSON returned to the client.
 INVENTORY-RESPONSE.
     INITIALIZE WS-RESPONSE-BODY
     STRING
@@ -624,6 +654,7 @@ INTERNAL-ERROR.
     MOVE HTTP-INTERNAL-ERROR TO WS-RESPONSE-STATUS
     MOVE '{"error":"internal"}' TO WS-RESPONSE-BODY.
 
+*> Send the status, headers, and JSON body.
 SEND-RESPONSE.
     EVALUATE WS-RESPONSE-STATUS
         WHEN HTTP-OK

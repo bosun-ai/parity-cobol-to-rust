@@ -1,4 +1,6 @@
-//! Process entry point for the Rust inventory service.
+//! Starts the Rust inventory service.
+//!
+//! It reads the settings, connects to the database, and starts the HTTP server.
 
 mod domain;
 mod http;
@@ -11,6 +13,7 @@ use thiserror::Error;
 use tokio::net::TcpListener;
 use tokio_postgres::NoTls;
 
+/// Runs the inventory service.
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), MainError> {
     tracing_subscriber::fmt()
@@ -36,18 +39,24 @@ async fn main() -> Result<(), MainError> {
     Ok(())
 }
 
+/// Reads one required setting.
 fn required(name: &'static str) -> Result<String, MainError> {
     env::var(name).map_err(|_| MainError::Missing(name))
 }
 
+/// The service could not start or keep running.
 #[derive(Debug, Error)]
 enum MainError {
+    /// A required setting is missing.
     #[error("required environment variable {0} is not set")]
     Missing(&'static str),
+    /// The port is invalid.
     #[error("PORT must be a valid TCP port")]
     InvalidPort(#[source] ParseIntError),
+    /// The database connection failed.
     #[error("could not connect to PostgreSQL")]
     Database(#[from] tokio_postgres::Error),
+    /// The HTTP server failed.
     #[error("inventory HTTP server failed")]
     Http(#[from] io::Error),
 }

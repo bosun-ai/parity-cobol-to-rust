@@ -1,4 +1,6 @@
-//! HTTP routes and public JSON response shapes.
+//! HTTP routes and JSON responses.
+//!
+//! Each route reads the path, calls the inventory service, and sends a response.
 
 use axum::{
     Json, Router,
@@ -15,6 +17,7 @@ use crate::{
     service::{InventoryService, ServiceError},
 };
 
+/// Creates the inventory routes.
 pub(crate) fn router(inventory: InventoryService) -> Router {
     Router::new()
         .route("/health", get(health))
@@ -28,10 +31,12 @@ pub(crate) fn router(inventory: InventoryService) -> Router {
         .with_state(inventory)
 }
 
+/// Reports that the service is running.
 async fn health() -> Response {
     (StatusCode::OK, Json(HealthResponse { status: "ok" })).into_response()
 }
 
+/// Returns one inventory item or a not-found error.
 async fn get_inventory(
     State(inventory): State<InventoryService>,
     OriginalUri(uri): OriginalUri,
@@ -47,6 +52,7 @@ async fn get_inventory(
     )
 }
 
+/// Tries to reserve stock and returns the result.
 async fn reserve_inventory(
     State(inventory): State<InventoryService>,
     OriginalUri(uri): OriginalUri,
@@ -70,22 +76,28 @@ async fn reserve_inventory(
     }
 }
 
+/// Rejects encoded paths that the COBOL service does not accept.
 fn reject_encoded_path(uri: &axum::http::Uri) -> Result<(), ApiError> {
     (!uri.path().contains('%'))
         .then_some(())
         .ok_or(ApiError::InvalidRequest)
 }
 
+/// Returns not found for an unknown path or method.
 async fn not_found() -> Response {
     error_response(StatusCode::NOT_FOUND, "not_found")
 }
 
+/// An error the client receives.
 #[derive(Debug, Error)]
 enum ApiError {
+    /// The request path is invalid.
     #[error("invalid request")]
     InvalidRequest,
+    /// No inventory exists for the SKU.
     #[error("inventory not found")]
     NotFound,
+    /// The database or event file failed.
     #[error(transparent)]
     Internal(#[from] ServiceError),
 }
@@ -103,15 +115,18 @@ impl axum::response::IntoResponse for ApiError {
     }
 }
 
+/// Builds a JSON error response.
 fn error_response(status: StatusCode, error: &'static str) -> Response {
     (status, Json(ErrorResponse { error })).into_response()
 }
 
+/// The health route returns this response.
 #[derive(Serialize)]
 struct HealthResponse {
     status: &'static str,
 }
 
+/// The service returns this response when stock is short.
 #[derive(Serialize)]
 struct InsufficientStockResponse<'a> {
     error: &'static str,
@@ -122,6 +137,7 @@ struct InsufficientStockResponse<'a> {
 }
 
 impl<'a> InsufficientStockResponse<'a> {
+    /// Creates the response from the current inventory.
     const fn new(item: &'a Inventory, quantity: ReservationQuantity) -> Self {
         Self {
             error: "insufficient_stock",
@@ -133,6 +149,7 @@ impl<'a> InsufficientStockResponse<'a> {
     }
 }
 
+/// The client receives this error.
 #[derive(Serialize)]
 struct ErrorResponse {
     error: &'static str,
