@@ -1,7 +1,7 @@
-# COBOL to Rust, proven with Parity
+# Parity Example: COBOL to Rust
 
 This repository contains one inventory service implemented twice: first in GNU COBOL, then in
-Rust. The Parity proof describes the behavior both programs must share.
+Rust. The Parity proof describes the behavior both programs must share. Parity proves by observation. It captures behavior like network calls, filesystem events, subprocess calls, with additional parsers for various protocols (Postgresql in this example). Those must match between legacy and target, unless explicitly expressed in Parity.
 
 The example is the source for [Introducing Parity](https://homeport.ai/blog/cobol-rust-intent).
 
