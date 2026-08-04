@@ -44,7 +44,7 @@ $ parity verify
 ```
 
 The proof compares HTTP responses, inventory rows, event contents, and observed side effects. It
-requires equality unless the proof states a specific accepted difference.
+requires equality except for each difference that the proof requires by path and value.
 
 ## Try the defects
 
