@@ -86,6 +86,8 @@ must expose. The defect checker reads the structured offline result because `pro
 evidence that offline verification evaluates. It compares behavior roots, not the assertions that
 also fail because of that behavior. Keeping the contract beside the example makes proof changes
 visible to both repositories. The `Parityfile` remains the configuration used by Parity.
+This repository tests the result checker against the real contract file. Parity owns the live Linux
+proof because it supplies the audit probes and runner.
 
 ## Layout
 
