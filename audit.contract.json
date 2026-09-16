@@ -20,7 +20,7 @@
       "filesystem_state",
       "inventory",
       "postgres",
-      "postgres_state_state"
+      "postgres_state"
     ],
     "inventory.show": ["events", "inventory", "postgres"]
   },
