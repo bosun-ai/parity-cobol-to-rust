@@ -20,12 +20,16 @@
       "filesystem_state",
       "inventory",
       "postgres",
-      "postgres_state_state"
+      "postgres_state"
     ],
     "inventory.show": ["events", "inventory", "postgres"]
   },
   "defects": {
-    "missing-event": ["views.events", "views.filesystem"],
+    "missing-event": [
+      "views.events",
+      "views.filesystem",
+      "views.filesystem_state"
+    ],
     "split-reservation": ["views.postgres"]
   }
 }
