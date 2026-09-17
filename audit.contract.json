@@ -28,8 +28,7 @@
     "missing-event": [
       "views.events",
       "views.filesystem",
-      "views.filesystem_state",
-      "views.postgres"
+      "views.filesystem_state"
     ],
     "split-reservation": ["views.postgres"]
   }
